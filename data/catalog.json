@@ -1,0 +1,178 @@
+{
+  "settings": {
+    "minItems": 1,
+    "maxItems": 10
+  },
+  "products": [
+    {
+      "slug": "sand-overdye-longsleeve",
+      "name": "Sand Overdye Longsleeve",
+      "colorName": "Sand",
+      "price": 6500,
+      "type": "longsleeve",
+      "color": "#d9c48d",
+      "accent": "#b9a46c",
+      "fabric": {
+        "kind": "solid"
+      },
+      "stock": {
+        "S": 4,
+        "M": 8,
+        "L": 6,
+        "XL": 2,
+        "2XL": 0
+      },
+      "description": "Garment-dyed heavyweight jersey with a washed, sun-faded finish."
+    },
+    {
+      "slug": "ember-hoodie",
+      "name": "Ember Hoodie",
+      "colorName": "Ember",
+      "price": 11500,
+      "type": "hoodie",
+      "color": "#e0521d",
+      "accent": "#b83e10",
+      "fabric": {
+        "kind": "solid"
+      },
+      "backPrint": "RACK",
+      "stock": {
+        "S": 0,
+        "M": 3,
+        "L": 5,
+        "XL": 4,
+        "2XL": 1
+      },
+      "description": "Brushed-back fleece, double-layer hood and a boxy dropped shoulder."
+    },
+    {
+      "slug": "night-shift-work-jacket",
+      "name": "Night Shift Work Jacket",
+      "colorName": "Navy",
+      "price": 18500,
+      "type": "jacket",
+      "color": "#272d3d",
+      "accent": "#f1efe8",
+      "fabric": {
+        "kind": "solid"
+      },
+      "backPrint": "RACK",
+      "stock": {
+        "S": 2,
+        "M": 2,
+        "L": 3,
+        "XL": 1,
+        "2XL": 1
+      },
+      "description": "Heavy cotton canvas with contrast chain stitching and metal shank buttons."
+    },
+    {
+      "slug": "field-strike-shirt",
+      "name": "Field Strike Shirt",
+      "colorName": "Navy / Green",
+      "price": 9800,
+      "type": "shirt",
+      "color": "#2e3352",
+      "accent": "#1ea86a",
+      "fabric": {
+        "kind": "plaid",
+        "lines": [
+          "#5b5f86",
+          "#7a4b5a"
+        ]
+      },
+      "panel": "#1ea86a",
+      "backPrint": "RACK",
+      "stock": {
+        "S": 3,
+        "M": 6,
+        "L": 6,
+        "XL": 3,
+        "2XL": 2
+      },
+      "description": "Brushed flannel check cut boxy and cropped, with an appliquéd contrast panel."
+    },
+    {
+      "slug": "fog-hoodie",
+      "name": "Fog Hoodie",
+      "colorName": "Fog",
+      "price": 11500,
+      "type": "hoodie",
+      "color": "#e4e1d9",
+      "accent": "#c9c5ba",
+      "fabric": {
+        "kind": "solid"
+      },
+      "stock": {
+        "S": 5,
+        "M": 7,
+        "L": 7,
+        "XL": 5,
+        "2XL": 3
+      },
+      "description": "Our core fleece in an undyed, oatmeal-grey colourway."
+    },
+    {
+      "slug": "coal-hoodie",
+      "name": "Coal Hoodie",
+      "colorName": "Coal",
+      "price": 11500,
+      "type": "hoodie",
+      "color": "#1c1c1f",
+      "accent": "#3a3a3f",
+      "fabric": {
+        "kind": "solid"
+      },
+      "backPrint": "RACK",
+      "stock": {
+        "S": 1,
+        "M": 0,
+        "L": 2,
+        "XL": 4,
+        "2XL": 2
+      },
+      "description": "Pigment-dyed black fleece that fades a little more with every wash."
+    },
+    {
+      "slug": "pool-stripe-shirt",
+      "name": "Pool Stripe Shirt",
+      "colorName": "Pool",
+      "price": 8200,
+      "type": "shirt",
+      "color": "#eef3f8",
+      "accent": "#5e8fc7",
+      "fabric": {
+        "kind": "stripe",
+        "stripe": "#5e8fc7"
+      },
+      "stock": {
+        "S": 6,
+        "M": 6,
+        "L": 4,
+        "XL": 2,
+        "2XL": 0
+      },
+      "description": "Crisp cotton poplin in a wide awning stripe with a camp collar."
+    },
+    {
+      "slug": "chalk-heavy-tee",
+      "name": "Chalk Heavy Tee",
+      "colorName": "Chalk",
+      "price": 4900,
+      "type": "tee",
+      "color": "#f4f3ee",
+      "accent": "#d9d7cf",
+      "fabric": {
+        "kind": "solid"
+      },
+      "stock": {
+        "S": 9,
+        "M": 12,
+        "L": 10,
+        "XL": 6,
+        "2XL": 4
+      },
+      "description": "300gsm loopwheel jersey with a tight ribbed collar."
+    }
+  ]
+}
