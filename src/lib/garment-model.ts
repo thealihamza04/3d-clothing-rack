@@ -50,17 +50,27 @@ export type GarmentModel = {
 };
 
 const cache = new Map<string, Promise<GarmentModel>>();
+const built = new Map<string, GarmentModel>();
 
 type Sources = { front?: string; back?: string; side?: string };
 
+const cacheKey = (product: Product, photos: Sources) =>
+  `${product.slug}|${photos.front ?? ""}|${photos.back ?? ""}|${photos.side ?? ""}`;
+
 export function loadGarmentModel(product: Product, photos: Sources) {
-  const key = `${product.slug}|${photos.front ?? ""}|${photos.back ?? ""}|${photos.side ?? ""}`;
+  const key = cacheKey(product, photos);
   let model = cache.get(key);
   if (!model) {
     model = build(product, photos);
+    model.then((m) => built.set(key, m));
     cache.set(key, model);
   }
   return model;
+}
+
+// A model that has already been built, so it can be shown on the very first frame.
+export function builtGarmentModel(product: Product, photos: Sources) {
+  return built.get(cacheKey(product, photos));
 }
 
 async function build(product: Product, photos: Sources): Promise<GarmentModel> {

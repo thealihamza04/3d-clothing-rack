@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import type { Product } from "@/lib/products";
@@ -60,6 +60,7 @@ function Turntable({
   children: React.ReactNode;
 }) {
   const ref = useRef<THREE.Group>(null);
+  const [from] = useState(start); // only the turn it first appears at; later changes don't snap it
   const drawn = useRef(0); // frames drawn since the garment loaded
   useFrame((_, dt) => {
     const g = ref.current;
@@ -69,7 +70,7 @@ function Turntable({
     if (loaded && drawn.current++ === 1) onReady?.();
   });
   return (
-    <group ref={ref} rotation={[0, start, 0]}>
+    <group ref={ref} rotation={[0, from, 0]}>
       {children}
     </group>
   );

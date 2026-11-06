@@ -3,7 +3,7 @@
 import { useEffect, useLayoutEffect, useState } from "react";
 import { useThree } from "@react-three/fiber";
 import * as THREE from "three";
-import { loadGarmentModel, type GarmentModel } from "@/lib/garment-model";
+import { builtGarmentModel, loadGarmentModel, type GarmentModel } from "@/lib/garment-model";
 import type { Photos, Product } from "@/lib/products";
 
 // Local space for a hung piece: the origin is the top of the hook's curl, where it
@@ -113,7 +113,14 @@ export function useGarmentModels(items: Product[], photos: Photos) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
 
-  return models;
+  // Models built earlier (say, for the rack) are there straight away, without waiting
+  // a frame for the effect.
+  const ready = { ...models };
+  for (const product of items) {
+    const done = ready[product.slug] ?? builtGarmentModel(product, photos[product.slug] ?? {});
+    if (done) ready[product.slug] = done;
+  }
+  return ready;
 }
 
 // Lighting shared by every scene: soft studio light from the front, a little from behind.

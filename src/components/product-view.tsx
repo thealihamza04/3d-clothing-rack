@@ -12,6 +12,11 @@ const spring = { type: "spring", stiffness: 260, damping: 26 } as const;
 // The piece's trip between its hook on the rack and the middle of the view: it eases
 // off, then settles.
 const flight = { duration: 0.6, ease: [0.45, 0, 0.15, 1] } as const;
+// Stepping to the next or previous piece, carousel style: it slides in a little from
+// that side, turned NAV_TURN towards it, and settles quickly.
+const quick = { duration: 0.3, ease: [0.2, 0, 0, 1] } as const;
+const NAV_TURN = 0.5;
+const NAV_SLIDE = 36;
 const blurred = { backdropFilter: "blur(16px)", backgroundColor: "rgba(245,245,243,0.6)" };
 const clear = { backdropFilter: "blur(0px)", backgroundColor: "rgba(245,245,243,0)" };
 
@@ -45,6 +50,7 @@ export function ProductView({
   const [entry] = useState(() => ({ slug: product.slug, pose: rackPose(index, picked) }));
   const arrivedRef = useRef(false);
   const [arrived, setArrived] = useState(false);
+  const [moved, setMoved] = useState(0); // -1 or 1 after stepping to another piece
   const [leaving, setLeaving] = useState<number | null>(null); // the turn it's put back with
   const [side, setSide] = useState<"front" | "back">("front");
   const [size, setSize] = useState<Size | null>(null);
@@ -54,6 +60,8 @@ export function ProductView({
   const y = useMotionValue(0);
   const scale = useMotionValue(1);
   const opacity = useMotionValue(0);
+  const slide = useMotionValue(0);
+  const fade = useMotionValue(1);
 
   // The move and scale that put the view's hook on a rack hook. Measured from where the
   // stage is right now, so it also works mid-flight.
@@ -121,6 +129,11 @@ export function ProductView({
   const go = (step: number) => {
     if (leaving !== null || !arrived) return;
     onIndexChange((index + step + products.length) % products.length);
+    setMoved(step);
+    slide.jump(step * NAV_SLIDE);
+    fade.jump(0.45);
+    animate(slide, 0, quick);
+    animate(fade, 1, quick);
     setSide("front");
     setSize(null);
     setShowStock(false);
@@ -197,23 +210,25 @@ export function ProductView({
         ref={stage}
         style={{ x, y, scale, opacity, transformOrigin: `50% ${(SHOWCASE_TOP / SHOWCASE_HEIGHT) * 100}%` }}
       >
-        <ShowcaseCanvas
-          product={product}
-          startTurn={product.slug === entry.slug && entry.pose ? entry.pose.turn : REST_TURN}
-          turn={leaving ?? (side === "front" ? 0 : Math.PI)}
-          pace={!arrived ? 0 : leaving !== null ? 9 : 6}
-          onReady={arrive}
-        />
+        <motion.div style={{ x: slide, opacity: fade }}>
+          <ShowcaseCanvas
+            product={product}
+            startTurn={moved ? moved * NAV_TURN : product.slug === entry.slug && entry.pose ? entry.pose.turn : REST_TURN}
+            turn={leaving ?? (side === "front" ? 0 : Math.PI)}
+            pace={!arrived ? 0 : leaving !== null ? 9 : moved ? 12 : 6}
+            onReady={arrive}
+          />
+        </motion.div>
       </motion.div>
 
       <motion.div
         key={product.slug}
         className="mt-4 flex w-full max-w-sm flex-col items-center text-center"
-        initial={{ opacity: 0, y: 10 }}
+        initial={moved ? { opacity: 0, x: moved * 12 } : { opacity: 0, y: 10 }}
         animate={
           leaving !== null
             ? { opacity: 0, y: 10, transition: { duration: 0.15 } }
-            : { opacity: 1, y: 0, transition: { delay: 0.4 } }
+            : { opacity: 1, x: 0, y: 0, transition: moved ? quick : { delay: 0.4 } }
         }
       >
         <h1 className="font-display text-lg leading-tight font-black tracking-[0.02em] uppercase sm:text-xl">
@@ -225,7 +240,10 @@ export function ProductView({
           {(["front", "back"] as const).map((s) => (
             <button
               key={s}
-              onClick={() => setSide(s)}
+              onClick={() => {
+                setSide(s);
+                setMoved(0); // turning to the back is unhurried
+              }}
               className="relative h-6 w-16 rounded-full uppercase"
               aria-pressed={side === s}
             >
