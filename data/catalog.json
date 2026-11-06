@@ -153,26 +153,6 @@
         "2XL": 0
       },
       "description": "Crisp cotton poplin in a wide awning stripe with a camp collar."
-    },
-    {
-      "slug": "chalk-heavy-tee",
-      "name": "Chalk Heavy Tee",
-      "colorName": "Chalk",
-      "price": 4900,
-      "type": "tee",
-      "color": "#f4f3ee",
-      "accent": "#d9d7cf",
-      "fabric": {
-        "kind": "solid"
-      },
-      "stock": {
-        "S": 9,
-        "M": 12,
-        "L": 10,
-        "XL": 6,
-        "2XL": 4
-      },
-      "description": "300gsm loopwheel jersey with a tight ribbed collar."
     }
   ]
 }
