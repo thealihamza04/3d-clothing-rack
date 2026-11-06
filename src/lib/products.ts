@@ -4,7 +4,7 @@ export const BRAND = "RACK";
 export const SIZES = ["S", "M", "L", "XL", "2XL"] as const;
 export type Size = (typeof SIZES)[number];
 
-export type GarmentType = "tee" | "longsleeve" | "hoodie" | "jacket" | "shirt";
+export type GarmentType = "tee" | "longsleeve" | "hoodie" | "jacket" | "shirt" | "pants";
 
 export type Fabric =
   | { kind: "solid" }
@@ -41,6 +41,7 @@ export const GARMENT_TYPES: { type: GarmentType; label: string }[] = [
   { type: "hoodie", label: "Hoodie" },
   { type: "jacket", label: "Jacket" },
   { type: "shirt", label: "Shirt" },
+  { type: "pants", label: "Pants" },
 ];
 
 // Product photos the user dropped into public/products/<slug>/, found by src/lib/photos.ts.

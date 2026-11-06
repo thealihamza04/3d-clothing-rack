@@ -10,7 +10,7 @@ import { garmentBottom, useGarmentModels } from "./garment-3d";
 import { LIFT, PIECE_Y, RackCanvas, SPREAD } from "./rack-canvas";
 import { BagIcon, ChevronIcon, SearchIcon, UserIcon } from "./icons";
 
-export function Store({ products, photos }: { products: Product[]; photos: Photos }) {
+export function Store({ products: catalog, photos }: { products: Product[]; photos: Photos }) {
   const [hovered, setHovered] = useState<number | null>(null);
   const [selected, setSelected] = useState<number | null>(null);
   // Whether the opened piece was lifted on the rack, and whether the view has taken it yet.
@@ -20,11 +20,19 @@ export function Store({ products, photos }: { products: Product[]; photos: Photo
   const [aboutOpen, setAboutOpen] = useState(false);
   const isMobile = useMediaQuery("(max-width: 639px)");
 
-  // Rails of up to four on phones and ten elsewhere, split evenly.
+  // Tops and pants hang on racks of their own, tops first. Each gets rails of up to
+  // four on phones and ten elsewhere, split evenly.
+  const groups = [catalog.filter((p) => p.type !== "pants"), catalog.filter((p) => p.type === "pants")];
+  const products = groups.flat();
   const perRail = isMobile ? 4 : 10;
-  const rails = Math.max(1, Math.ceil(products.length / perRail));
-  const perRow = Math.ceil(products.length / rails);
-  const rows = Array.from({ length: rails }, (_, r) => products.slice(r * perRow, (r + 1) * perRow));
+  const rows: { items: Product[]; offset: number }[] = [];
+  let offset = 0;
+  for (const group of groups) {
+    const rails = Math.ceil(group.length / perRail);
+    const perRow = Math.ceil(group.length / rails);
+    for (let r = 0; r < rails; r++) rows.push({ items: group.slice(r * perRow, (r + 1) * perRow), offset: offset + r * perRow });
+    offset += group.length;
+  }
 
   return (
     <PhotosProvider value={photos}>
@@ -89,11 +97,11 @@ export function Store({ products, photos }: { products: Product[]; photos: Photo
         </header>
 
         <main className="flex flex-1 flex-col items-center gap-6 pt-[9vh] pb-10 sm:pt-[12vh]">
-          {rows.map((row, r) => (
+          {rows.map((row) => (
             <Rack
-              key={r}
-              items={row}
-              offset={r * perRow}
+              key={row.offset}
+              items={row.items}
+              offset={row.offset}
               photos={photos}
               hovered={isMobile ? null : hovered}
               hidden={shown ? selected : null}
@@ -133,7 +141,9 @@ export function Store({ products, photos }: { products: Product[]; photos: Photo
 
 // Pieces hang one slot (--s) apart. The 3D scene is drawn in slot units, and plain
 // buttons over each slot handle pointing, clicking and keyboard focus.
-const HEIGHT = 5.6; // rack height in slots, with room for a lifted piece and its tag
+// Rack heights in slots, with room for a lifted piece and its tag. Pants hang longer.
+const HEIGHT = 4.8;
+const PANTS_HEIGHT = 5.6;
 
 function Rack({
   items,
@@ -156,14 +166,21 @@ function Rack({
   const inRange = (i: number | null) => (i !== null && i >= offset && i < offset + items.length ? i - offset : null);
   const local = inRange(hovered);
   const label = local === null ? null : items[local];
+  // How far a lifted piece reaches down the rack, in slots. Pants hang longer than tops.
+  const reach = (product: Product) => {
+    const model = models[product.slug];
+    return model ? -(PIECE_Y + garmentBottom(model) * LIFT) : 4.1;
+  };
   // The tag sits just under the lifted piece.
-  const model = label && models[label.slug];
-  const labelTop = model ? -(PIECE_Y + garmentBottom(model) * LIFT) + 0.3 : 4.6;
+  const labelTop = label ? reach(label) + 0.3 : 4.6;
 
   return (
     <div
       className="relative [--s:clamp(44px,13.5vw,80px)] sm:[--s:clamp(60px,6.4vw,112px)]"
-      style={{ width: `calc(var(--s) * ${items.length + 3})`, height: `calc(var(--s) * ${HEIGHT})` }}
+      style={{
+        width: `calc(var(--s) * ${items.length + 3})`,
+        height: `calc(var(--s) * ${items.some((p) => p.type === "pants") ? PANTS_HEIGHT : HEIGHT})`,
+      }}
       onMouseLeave={() => onHover(null)}
     >
       <RackCanvas items={items} models={models} hovered={local} hidden={inRange(hidden)} />
@@ -177,7 +194,7 @@ function Rack({
           style={{
             left: `calc(var(--s) * ${j + 1.5})`,
             width: "var(--s)",
-            height: `calc(var(--s) * 4.2)`,
+            height: `calc(var(--s) * ${reach(product) + 0.1})`,
             translate: `calc(var(--s) * ${local === null || local === j ? 0 : Math.sign(j - local) * SPREAD}) 0`,
           }}
           onMouseEnter={() => onHover(offset + j)}

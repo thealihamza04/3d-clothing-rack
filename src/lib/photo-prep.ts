@@ -11,6 +11,9 @@ const CANVAS_W = 1600;
 const CANVAS_H = 2000;
 // Front width as a share of the canvas, matching the drawn placeholders.
 const FRONT_WIDTH = 0.74;
+// Long, narrow pieces (pants) reach this share of the height instead, which is about
+// as long as the product view has room for.
+const FRONT_MAX_HEIGHT = 0.92;
 
 // Reads an image file, removes its backdrop (unless it's already transparent) and
 // crops to the garment. Side photos can be mirrored so the front faces right.
@@ -73,7 +76,7 @@ export function toPng(c: HTMLCanvasElement) {
 }
 
 function frontScale(garment: HTMLCanvasElement) {
-  return Math.min((FRONT_WIDTH * CANVAS_W) / garment.width, (0.98 * CANVAS_H) / garment.height);
+  return Math.min((FRONT_WIDTH * CANVAS_W) / garment.width, (FRONT_MAX_HEIGHT * CANVAS_H) / garment.height);
 }
 
 function hasTransparency({ data }: ImageData) {

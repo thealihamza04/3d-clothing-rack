@@ -34,19 +34,25 @@ const MAX_DEPTH = 0.26;
 const SLEEVE_THICKNESS = 0.4;
 // Mesh spacing.
 const STEP = 0.05;
+// The rolled edge is built along lines this far in from the outline, so it curves
+// smoothly all the way round. The rest is filled with a staggered grid.
+const EDGE_RINGS = [0.02, 0.045, 0.08, 0.125, 0.18];
 const TEX_W = 800;
 const TEX_H = 1000;
-const GRID_W = 96;
-const GRID_H = 120;
+// Outlines are traced on this grid.
+const GRID_W = 192;
+const GRID_H = 240;
 
 export type GarmentModel = {
   geometry: THREE.BufferGeometry;
   materials: THREE.Material[];
   // Highest point of the outline (y is 0 at the top of the picture, negative downward).
   top: number;
-  // Where the hanger sits inside the piece, in the same coordinates as the outline:
-  // its centre under the collar, and its arms reaching out to ±reach.
-  hanger: { reach: number; centre: number; end: number };
+  // How the piece hangs, in the same coordinates as the outline. Tops sit on a wooden
+  // hanger inside them: its centre under the collar, its arms reaching out to ±reach.
+  // Pants hang by the waistband from two clips at ±x, gripping it between z = back and
+  // z = front.
+  hanger: { kind: "arms"; reach: number; centre: number; end: number } | { kind: "clips"; x: number; front: number; back: number };
 };
 
 const cache = new Map<string, Promise<GarmentModel>>();
@@ -85,35 +91,35 @@ async function build(product: Product, photos: Sources): Promise<GarmentModel> {
     sideSource ? loadImage(sideSource) : null,
   ]);
   const front = drawFramed(frontImage);
-  const { points, top, inside } = traceOutline(front);
+  const { points, top, inside, rings } = traceOutline(front);
   const xs = points.map((p) => p.x);
   const frontWidth = Math.max(...xs) - Math.min(...xs);
 
-  const frontTexture = toTexture(bleed(front));
-  const backTexture = toTexture(bleed(drawFramed(backImage)));
+  const frontTexture = garmentTexture(frontImage, front);
   // The back is seen from behind, so flip it to read the right way round.
-  backTexture.wrapS = THREE.RepeatWrapping;
-  backTexture.repeat.x = -1;
-  backTexture.offset.x = 1;
+  const backTexture = garmentTexture(backImage, drawFramed(backImage), true);
 
   let profile: Profile = estimatedProfile;
   let sideTexture = frontTexture;
   if (sideImage) {
     const side = drawFramed(sideImage);
     profile = traceProfile(side, frontWidth);
-    sideTexture = toTexture(bleed(side));
+    sideTexture = garmentTexture(sideImage, side);
   }
+  if (product.type === "pants") profile = pinchWaist(profile);
 
-  const geometry = buildBody(points, inside, top, profile);
+  const geometry = buildBody(points, rings, inside, top, profile);
   const materials = [fabricMaterial(frontTexture, sideTexture), fabricMaterial(backTexture, sideTexture)];
 
-  return { geometry, materials, top, hanger: fitHanger(points) };
+  const hanger = product.type === "pants" ? fitClips(inside, top, profile, frontWidth / 2) : fitHanger(points);
+  return { geometry, materials, top, hanger };
 }
 
 const toUV = (x: number, y: number) => [x / PIC_W + 0.5, 1 + y / PIC_H];
 
 function buildBody(
   outline: THREE.Vector2[],
+  rings: Ring[],
   inside: (x: number, y: number) => number,
   top: number,
   profile: Profile,
@@ -122,16 +128,20 @@ function buildBody(
   const xs = outline.map((p) => p.x);
   const [minX, maxX] = [Math.min(...xs), Math.max(...xs)];
 
-  // Points along the outline (shared by front and back, where they meet) and a
-  // staggered grid of points inside it.
+  // Points along the outline (shared by front and back, where they meet), along the
+  // lines just inside it, and a staggered grid of points deeper in. Each knows how
+  // far in from the outline it is.
   const rim = densify(outline, STEP);
-  const fill: THREE.Vector2[] = [];
+  const fill: { p: THREE.Vector2; depth: number }[] = [];
+  for (const ring of rings) for (const p of densify(ring.points, STEP)) fill.push({ p, depth: ring.depth });
+  const gridFrom = EDGE_RINGS[EDGE_RINGS.length - 1] + STEP / 2;
   for (let y = top - STEP / 2, row = 0; y > bottom; y -= STEP * 0.87, row++) {
     for (let x = minX + (row % 2 ? STEP / 2 : 0); x < maxX; x += STEP) {
-      if (inside(x, y) > STEP * 0.6) fill.push(new THREE.Vector2(x, y));
+      const depth = inside(x, y);
+      if (depth > gridFrom) fill.push({ p: new THREE.Vector2(x, y), depth });
     }
   }
-  const all = [...rim, ...fill];
+  const all = [...rim, ...fill.map((f) => f.p)];
   const triangles = Delaunay.from(all, (p) => p.x, (p) => p.y).triangles;
   const bodyHalf = bodyHalfWidth(inside, top - 0.88 * (top - bottom), maxX);
 
@@ -151,9 +161,9 @@ function buildBody(
     const { front, back } = profile.at((top - p.y) / (top - bottom));
     put(i, p, (front + back) / 2);
   });
-  fill.forEach((p, i) => {
+  fill.forEach(({ p, depth }, i) => {
     const down = (top - p.y) / (top - bottom);
-    const { front, back } = thickness(p.x, p.y, inside(p.x, p.y), down, profile, bodyHalf);
+    const { front, back } = thickness(p.x, p.y, depth, down, profile, bodyHalf);
     put(nRim + i, p, front);
     put(nRim + nFill + i, p, back);
   });
@@ -272,7 +282,7 @@ function traceProfile(picture: HTMLCanvasElement, frontWidth: number): Profile {
     let front = 0;
     let back = 0;
     let n = 0;
-    for (let k = Math.max(first, y - 3); k <= Math.min(last, y + 3); k++) {
+    for (let k = Math.max(first, y - 6); k <= Math.min(last, y + 6); k++) {
       front += rows[k].front;
       back += rows[k].back;
       n++;
@@ -300,12 +310,32 @@ function traceProfile(picture: HTMLCanvasElement, frontWidth: number): Profile {
   };
 }
 
+// Pants hang from clips that press the waistband's front and back together, so the
+// top is squeezed thin and opens out to full depth over the hips.
+const WAIST_PINCH = 0.3;
+
+function pinchWaist(profile: Profile): Profile {
+  return {
+    at(down) {
+      const { front, back } = profile.at(down);
+      const t = Math.min(down / 0.12, 1);
+      const k = WAIST_PINCH + (1 - WAIST_PINCH) * t * t * (3 - 2 * t);
+      const mid = (front + back) / 2;
+      return { front: mid + (front - mid) * k, back: mid + (back - mid) * k };
+    },
+    uv: profile.uv,
+  };
+}
+
 // Standard fabric, but the colour comes from the side picture wherever the surface
 // faces sideways, fading over from the front (or back) picture as it turns.
 function fabricMaterial(map: THREE.Texture, sideMap: THREE.Texture) {
   const material = new THREE.MeshStandardMaterial({ map, roughness: 0.95, metalness: 0 });
   material.onBeforeCompile = (shader) => {
     shader.uniforms.sideMap = { value: sideMap };
+    // three only applies a texture's crop (repeat and offset) to its own maps, so do it here.
+    shader.uniforms.sideRepeat = { value: sideMap.repeat };
+    shader.uniforms.sideOffset = { value: sideMap.offset };
     shader.vertexShader = shader.vertexShader
       .replace(
         "#include <common>",
@@ -315,13 +345,15 @@ function fabricMaterial(map: THREE.Texture, sideMap: THREE.Texture) {
     shader.fragmentShader = shader.fragmentShader
       .replace(
         "#include <common>",
-        "#include <common>\nuniform sampler2D sideMap;\nvarying vec2 vSideUv;\nvarying float vSideways;",
+        "#include <common>\nuniform sampler2D sideMap;\nuniform vec2 sideRepeat;\nuniform vec2 sideOffset;\nvarying vec2 vSideUv;\nvarying float vSideways;",
       )
       .replace(
         "#include <map_fragment>",
+        // The pictures are drawn a few times smaller than they are, so lean towards the
+        // sharper mipmaps (a negative bias); the default blur loses seams and ribbing.
         `#ifdef USE_MAP
-          vec4 faceTexel = texture2D( map, vMapUv );
-          vec4 sideTexel = texture2D( sideMap, vSideUv );
+          vec4 faceTexel = texture2D( map, vMapUv, -0.7 );
+          vec4 sideTexel = texture2D( sideMap, vSideUv * sideRepeat + sideOffset, -0.7 );
           diffuseColor *= mix( faceTexel, sideTexel, smoothstep( 0.35, 0.8, vSideways ) );
         #endif`,
       );
@@ -368,17 +400,32 @@ function traceOutline(picture: HTMLCanvasElement) {
     ];
   }
 
-  const points = simplifyRing(ring, 0.35).map(
-    ([x, y]) => new THREE.Vector2((x / GRID_W - 0.5) * PIC_W, -(y / GRID_H) * PIC_H),
-  );
+  const toWorld = ([x, y]: [number, number]) => new THREE.Vector2((x / GRID_W - 0.5) * PIC_W, -(y / GRID_H) * PIC_H);
+  const points = simplifyRing(ring, 0.35).map(toWorld);
   const depth = distanceInside(alpha);
   // Distance from (x, y) in to the nearest edge, in world units; 0 or less outside.
   const inside = (x: number, y: number) => {
     if (!insidePolygon(points, x, y)) return 0;
     return Math.max(sampleGrid(depth, (x / PIC_W + 0.5) * GRID_W - 0.5, (-y / PIC_H) * GRID_H - 0.5), 1e-3);
   };
-  return { points, top: Math.max(...points.map((p) => p.y)), inside };
+
+  // The lines EDGE_RINGS in from the outline, inside the piece that was kept.
+  const rings: Ring[] = [];
+  for (const level of contours().size([GRID_W, GRID_H]).thresholds(EDGE_RINGS)(Array.from(depth))) {
+    for (const polygon of level.coordinates) {
+      for (const line of polygon) {
+        if (line.length < 4) continue;
+        const ringPoints = simplifyRing(line as [number, number][], 0.25).map(toWorld);
+        if (ringPoints.length >= 3 && insidePolygon(points, ringPoints[0].x, ringPoints[0].y)) {
+          rings.push({ depth: level.value, points: ringPoints });
+        }
+      }
+    }
+  }
+  return { points, top: Math.max(...points.map((p) => p.y)), inside, rings };
 }
+
+type Ring = { depth: number; points: THREE.Vector2[] };
 
 // Two-pass chamfer distance transform over the alpha grid, in world units.
 function distanceInside(alpha: Float64Array) {
@@ -445,7 +492,14 @@ function fitHanger(points: THREE.Vector2[]) {
   }
   centre -= poke;
   end -= poke;
-  return { reach, centre, end };
+  return { kind: "arms" as const, reach, centre, end };
+}
+
+// Pants: one clip a little in from each end of the waistband, as deep as the waistband.
+function fitClips(inside: (x: number, y: number) => number, top: number, profile: Profile, fallback: number) {
+  const waist = bodyHalfWidth(inside, top - 0.1, fallback);
+  const { front, back } = profile.at(0.02);
+  return { kind: "clips" as const, x: Math.max(waist - 0.16, 0.15), front, back };
 }
 
 // Highest point of the outline straight above/below x.
@@ -491,18 +545,83 @@ function simplify(points: [number, number][], tolerance: number): [number, numbe
   return [...simplify(points.slice(0, index + 1), tolerance).slice(0, -1), ...simplify(points.slice(index), tolerance)];
 }
 
-// Paints edge colours outward into the transparent area and makes everything
-// opaque, so the rounded edge never samples see-through pixels.
-function bleed(picture: HTMLCanvasElement) {
-  const out = canvas(TEX_W, TEX_H);
-  const ctx = out.getContext("2d", { willReadFrequently: true })!;
-  ctx.filter = `blur(${Math.round(TEX_W / 48)}px)`;
-  for (let i = 0; i < 4; i++) ctx.drawImage(picture, 0, 0);
-  ctx.filter = "none";
+// Textures are made at the photos' own size (the admin panel saves 1600×2000), so
+// zooming in stays sharp, and cropped to the garment so no memory goes on empty space.
+const FULL_W = 1600;
+const FULL_H = 2000;
+// Room left round the crop for the spread edge colours, in full-size pixels.
+const CROP_MARGIN = 40;
+
+// `framed` is the same picture drawn small (drawFramed), used to find the garment.
+// The texture's repeat and offset map the frame's UVs onto the crop.
+function garmentTexture(image: HTMLImageElement, framed: HTMLCanvasElement, mirror = false) {
+  const box = opaqueBox(framed);
+  const k = FULL_W / framed.width;
+  const x0 = Math.max(0, Math.floor(box.x0 * k) - CROP_MARGIN);
+  const y0 = Math.max(0, Math.floor(box.y0 * k) - CROP_MARGIN);
+  const x1 = Math.min(FULL_W, Math.ceil(box.x1 * k) + CROP_MARGIN);
+  const y1 = Math.min(FULL_H, Math.ceil(box.y1 * k) + CROP_MARGIN);
+  const crop = canvas(x1 - x0, y1 - y0);
+  const ctx = crop.getContext("2d")!;
+  ctx.imageSmoothingQuality = "high";
+  const scale = Math.min(FULL_W / image.naturalWidth, FULL_H / image.naturalHeight);
+  const w = image.naturalWidth * scale;
+  ctx.drawImage(image, (FULL_W - w) / 2 - x0, -y0, w, image.naturalHeight * scale);
+
+  const texture = toTexture(bleed(crop, FULL_W / 48));
+  // Frame UVs run 0 to 1 across the whole frame, v upward.
+  texture.repeat.set(FULL_W / crop.width, FULL_H / crop.height);
+  texture.offset.set(-x0 / crop.width, (y1 - FULL_H) / crop.height);
+  if (mirror) {
+    texture.offset.x += texture.repeat.x;
+    texture.repeat.x *= -1;
+  }
+  return texture;
+}
+
+// Bounding box of the visible part of a picture, in its pixels.
+function opaqueBox(picture: HTMLCanvasElement) {
+  const { width: w, height: h } = picture;
+  const { data } = picture.getContext("2d", { willReadFrequently: true })!.getImageData(0, 0, w, h);
+  let [x0, y0, x1, y1] = [w, h, 0, 0];
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      if (data[(y * w + x) * 4 + 3] > 8) {
+        x0 = Math.min(x0, x);
+        x1 = Math.max(x1, x + 1);
+        y0 = Math.min(y0, y);
+        y1 = Math.max(y1, y + 1);
+      }
+    }
+  }
+  return x1 > x0 ? { x0, y0, x1, y1 } : { x0: 0, y0: 0, x1: w, y1: h };
+}
+
+// Paints edge colours outward into the transparent area and fills the rest with the
+// garment's average colour, so the rolled edge and the small mipmaps never pick up
+// see-through or black pixels. The spread is worked out at a quarter of the size,
+// which is plenty for a blur and much quicker.
+function bleed(picture: HTMLCanvasElement, spread: number) {
+  const small = canvas(Math.ceil(picture.width / 4), Math.ceil(picture.height / 4));
+  const sctx = small.getContext("2d", { willReadFrequently: true })!;
+  sctx.filter = `blur(${Math.max(1, Math.round(spread / 4))}px)`;
+  for (let i = 0; i < 4; i++) sctx.drawImage(picture, 0, 0, small.width, small.height);
+  const image = sctx.getImageData(0, 0, small.width, small.height);
+  const { data } = image;
+  let [r, g, b, n] = [0, 0, 0, 0];
+  for (let i = 0; i < data.length; i += 4) {
+    if (data[i + 3] > 32) [r, g, b, n] = [r + data[i], g + data[i + 1], b + data[i + 2], n + 1];
+  }
+  for (let i = 0; i < data.length; i += 4) {
+    if (data[i + 3] <= 8 && n) data.set([r / n, g / n, b / n], i);
+    data[i + 3] = 255;
+  }
+  sctx.putImageData(image, 0, 0);
+
+  const out = canvas(picture.width, picture.height);
+  const ctx = out.getContext("2d")!;
+  ctx.drawImage(small, 0, 0, out.width, out.height);
   ctx.drawImage(picture, 0, 0);
-  const image = ctx.getImageData(0, 0, TEX_W, TEX_H);
-  for (let i = 3; i < image.data.length; i += 4) image.data[i] = 255;
-  ctx.putImageData(image, 0, 0);
   return out;
 }
 
@@ -519,7 +638,7 @@ function drawFramed(image: HTMLImageElement) {
 function toTexture(source: HTMLCanvasElement) {
   const texture = new THREE.CanvasTexture(source);
   texture.colorSpace = THREE.SRGBColorSpace;
-  texture.anisotropy = 4;
+  texture.anisotropy = 8;
   return texture;
 }
 

@@ -7,11 +7,11 @@ import { CheckIcon, CopyIcon } from "./icons";
 // worn, folded or on a hanger, into the front, back and side photos the rack needs.
 const PROMPT = `Using the clothing item in the attached photo, create 3 separate product photos of it: one from the FRONT, one from the BACK and one from the SIDE. Make each one its own image, not a collage.
 
-Keep it exactly the same item in all three: same colour, fabric, fit, length, collar, sleeves, pockets, prints, logos and every small detail. Don't add, remove or change anything. If it's being worn, folded, creased or shot at an angle, show it as it would look neatly laid out.
+Keep it exactly the same item in all three: same colour, fabric, fit, length, collar, waistband, sleeves, pockets, prints, logos and every small detail. Don't add, remove or change anything. If it's being worn, folded, creased or shot at an angle, show it as it would look neatly laid out.
 
-1. FRONT: straight-on front view, centred, whole garment in frame with a small margin. Long sleeves hang straight down at the sides.
+1. FRONT: straight-on front view, centred, whole garment in frame with a small margin. Long sleeves hang straight down at the sides. Trouser legs hang straight down side by side, slightly apart, full length.
 2. BACK: seen from directly behind, same framing as the front. A hood lies flat down the back. If my photo shows the back, copy it exactly; if it doesn't, keep the back plain with no print.
-3. SIDE: profile view, turned 90 degrees, with the front of the garment facing the RIGHT edge of the image. A hood falls at the back on the left. The near sleeve hangs straight down along the side.
+3. SIDE: profile view, turned 90 degrees, with the front of the garment facing the RIGHT edge of the image. A hood falls at the back on the left. The near sleeve hangs straight down along the side. Trousers show one leg straight down, the other hidden behind it.
 
 All three: ghost-mannequin style, the garment keeps its natural shape with no person, no mannequin, no hanger and no hook in view. Plain seamless light grey (#e4e4e4) background, or medium grey (#8a8a8a) if the clothes are white or very pale. Soft even studio lighting, natural soft fabric folds, realistic fabric texture, sharp focus, no props, no extra text. Portrait 4:5. Same size, lighting and background in all three.`;
 

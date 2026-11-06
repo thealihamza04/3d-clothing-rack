@@ -61,8 +61,33 @@ export function GarmentArt({
   hanger?: boolean;
   className?: string;
 }) {
+  if (product.type === "pants") return <PantsArt product={product} side={side} className={className} />;
   if (side === "side") return <SideArt product={product} className={className} />;
   return <FlatArt product={product} side={side} hanger={hanger} className={className} />;
+}
+
+function FabricPattern({ id, product }: { id: string; product: Product }) {
+  const { fabric, color } = product;
+  if (fabric.kind === "stripe") {
+    return (
+      <pattern id={id} width="18" height="18" patternUnits="userSpaceOnUse">
+        <rect width="18" height="18" fill={color} />
+        <rect width="7" height="18" fill={fabric.stripe} />
+      </pattern>
+    );
+  }
+  if (fabric.kind === "plaid") {
+    return (
+      <pattern id={id} width="22" height="22" patternUnits="userSpaceOnUse">
+        <rect width="22" height="22" fill={color} />
+        <rect width="22" height="5" y="4" fill={fabric.lines[0]} opacity={0.7} />
+        <rect width="5" height="22" x="4" fill={fabric.lines[0]} opacity={0.7} />
+        <rect width="22" height="1.5" y="15" fill={fabric.lines[1]} />
+        <rect width="1.5" height="22" x="15" fill={fabric.lines[1]} />
+      </pattern>
+    );
+  }
+  return null;
 }
 
 function FlatArt({
@@ -78,6 +103,7 @@ function FlatArt({
 }) {
   const uid = useId().replace(/:/g, "");
   const { type, color, accent, fabric } = product;
+  if (type === "pants") return null; // drawn by PantsArt
   const fabricId = `fabric-${uid}`;
   const shadeId = `shade-${uid}`;
   const clipId = `clip-${uid}`;
@@ -111,21 +137,7 @@ function FlatArt({
   return (
     <svg xmlns="http://www.w3.org/2000/svg" width="480" height="600" viewBox="0 0 240 300" className={className} aria-hidden>
       <defs>
-        {fabric.kind === "stripe" && (
-          <pattern id={fabricId} width="18" height="18" patternUnits="userSpaceOnUse">
-            <rect width="18" height="18" fill={color} />
-            <rect width="7" height="18" fill={fabric.stripe} />
-          </pattern>
-        )}
-        {fabric.kind === "plaid" && (
-          <pattern id={fabricId} width="22" height="22" patternUnits="userSpaceOnUse">
-            <rect width="22" height="22" fill={color} />
-            <rect width="22" height="5" y="4" fill={fabric.lines[0]} opacity={0.7} />
-            <rect width="5" height="22" x="4" fill={fabric.lines[0]} opacity={0.7} />
-            <rect width="22" height="1.5" y="15" fill={fabric.lines[1]} />
-            <rect width="1.5" height="22" x="15" fill={fabric.lines[1]} />
-          </pattern>
-        )}
+        <FabricPattern id={fabricId} product={product} />
         <linearGradient id={shadeId} x1="0" x2="1" y1="0" y2="0">
           <stop offset="0" stopColor="#000" stopOpacity={0.14} />
           <stop offset="0.3" stopColor="#000" stopOpacity={0} />
@@ -284,6 +296,7 @@ const SIDE_HEM = { tee: 286, longsleeve: 290, hoodie: 288, jacket: 282, shirt: 2
 function SideArt({ product, className }: { product: Product; className?: string }) {
   const uid = useId().replace(/:/g, "");
   const { type, color, accent, fabric, panel } = product;
+  if (type === "pants") return null; // drawn by PantsArt
   const fabricId = `side-fabric-${uid}`;
   const shadeId = `side-shade-${uid}`;
   const fill = fabric.kind === "solid" ? color : `url(#${fabricId})`;
@@ -351,6 +364,79 @@ function SideArt({ product, className }: { product: Product; className?: string 
       {type === "jacket" && (
         <path d={`M${139 + flare / 2} 64 L${139 + flare} ${hem - 4}`} stroke={accent} strokeWidth={1.2} strokeDasharray="3 2.5" />
       )}
+    </svg>
+  );
+}
+
+// Pants are long, so they fill nearly the whole height: waistband at the top, legs
+// slightly apart, and in the side view the front faces right and the seat bulges left.
+const PANTS = {
+  flat: "M70 12 L170 12 L176 84 L171 286 L125 286 L121 106 Q120 102 119 106 L115 286 L69 286 L64 84 Z",
+  side: "M98 12 L140 12 C144 34 147 64 146 96 L139 286 L101 286 C97 210 92 140 89 92 C87 60 92 34 98 12 Z",
+};
+
+function PantsArt({ product, side, className }: { product: Product; side: Side; className?: string }) {
+  const uid = useId().replace(/:/g, "");
+  const { color, accent, fabric } = product;
+  const fabricId = `pants-fabric-${uid}`;
+  const shadeId = `pants-shade-${uid}`;
+  const clipId = `pants-clip-${uid}`;
+  const fill = fabric.kind === "solid" ? color : `url(#${fabricId})`;
+  const outline = side === "side" ? PANTS.side : PANTS.flat;
+  const seam = { stroke: "#000", strokeOpacity: 0.22, strokeWidth: 1.2, fill: "none" } as const;
+  const stitch = { stroke: accent, strokeWidth: 1.2, strokeDasharray: "3 2.5", fill: "none" } as const;
+  const fold = { stroke: "#000", strokeOpacity: 0.08, strokeWidth: 2.5, fill: "none" } as const;
+  const loops = side === "side" ? [117] : side === "front" ? [80, 104, 136, 156] : [80, 104, 118, 132, 156];
+
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width="480" height="600" viewBox="0 0 240 300" className={className} aria-hidden>
+      <defs>
+        <FabricPattern id={fabricId} product={product} />
+        <linearGradient id={shadeId} x1="0" x2="1" y1="0" y2="0">
+          <stop offset="0" stopColor="#000" stopOpacity={0.16} />
+          <stop offset="0.5" stopColor="#fff" stopOpacity={0.06} />
+          <stop offset="1" stopColor="#000" stopOpacity={0.18} />
+        </linearGradient>
+        <clipPath id={clipId}>
+          <path d={outline} />
+        </clipPath>
+      </defs>
+
+      <path d={outline} fill={fill} stroke={OUTLINE} />
+      <g clipPath={`url(#${clipId})`}>
+        {/* Waistband and hems. */}
+        <path d="M0 27 H240" {...seam} />
+        <path d="M0 24 H240 M0 279 H240" {...stitch} />
+        {side === "front" && (
+          <>
+            <path d="M120 27 V100" {...seam} />
+            <path d="M128 27 V76 Q128 88 120 92" {...stitch} />
+            <path d="M78 27 Q90 50 65 64 M162 27 Q150 50 175 64" {...seam} />
+          </>
+        )}
+        {side === "back" && (
+          <>
+            <path d="M120 27 V104" {...seam} />
+            <path d="M60 44 Q92 52 120 62 Q148 52 180 44" {...seam} />
+            <path d="M80 70 L110 66 L111 100 L96 108 L82 102 Z M160 70 L130 66 L129 100 L144 108 L158 102 Z" {...seam} />
+          </>
+        )}
+        {side === "side" ? (
+          <>
+            <path d="M121 27 Q118 150 121 286" {...seam} />
+            <path d="M140 27 Q133 44 146 54" {...seam} />
+            <path d="M108 120 Q106 200 109 280" {...fold} />
+          </>
+        ) : (
+          <path d="M92 112 Q95 200 92 280 M148 112 Q145 200 148 280" {...fold} />
+        )}
+        <rect x="0" y="0" width="240" height="300" fill={`url(#${shadeId})`} />
+      </g>
+
+      {loops.map((x) => (
+        <rect key={x} x={x} y={12} width={4} height={17} rx={1} fill={fill} stroke={OUTLINE} strokeWidth={0.8} />
+      ))}
+      {side === "front" && <circle cx={124} cy={19} r={3} fill="#b9b9bd" stroke="#555" strokeWidth={0.8} />}
     </svg>
   );
 }

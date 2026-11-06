@@ -4,7 +4,7 @@ import { useRef } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import type { Product } from "@/lib/products";
-import { HungGarment, SlotCamera, StudioLights, steel } from "./garment-3d";
+import { HungGarment, SlotCamera, StudioLights, steel, useZoomDpr } from "./garment-3d";
 import type { GarmentModel } from "@/lib/garment-model";
 
 // At rest a piece hangs at about three-quarters, turned ~73° so part of its front
@@ -32,11 +32,12 @@ export function RackCanvas({
   hidden: number | null;
 }) {
   const width = items.length + 3;
+  const dpr = useZoomDpr();
   return (
     <Canvas
       flat
       shadows="percentage"
-      dpr={[1, 2]}
+      dpr={dpr}
       gl={{ alpha: true, antialias: true }}
       style={{ position: "absolute", inset: 0, pointerEvents: "none" }}
       className="drop-shadow-[0_12px_12px_rgba(0,0,0,0.12)]"

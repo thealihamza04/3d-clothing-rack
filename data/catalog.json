@@ -153,6 +153,26 @@
         "2XL": 0
       },
       "description": "Crisp cotton poplin in a wide awning stripe with a camp collar."
+    },
+    {
+      "slug": "dune-chino",
+      "name": "Dune Chino",
+      "colorName": "Khaki",
+      "price": 7900,
+      "type": "pants",
+      "color": "#b8a27a",
+      "accent": "#978564",
+      "fabric": {
+        "kind": "solid"
+      },
+      "stock": {
+        "S": 3,
+        "M": 6,
+        "L": 6,
+        "XL": 3,
+        "2XL": 1
+      },
+      "description": "Heavy cotton twill chino with a straight leg and a clean, flat front."
     }
   ]
 }

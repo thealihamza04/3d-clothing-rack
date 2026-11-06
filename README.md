@@ -15,7 +15,8 @@ The rack is a real 3D scene (three.js). Each piece is built from its photos: the
 outline of the front photo gives its shape, the outline of the side photo gives its
 depth at every height (shoulders, collar, hanging sleeve, hood), and the photos are
 printed on the matching faces, blending as the piece turns. The hanger and hook are
-added in 3D.
+added in 3D: tops sit on a wooden hanger, and pants hang full length from a clip
+hanger by the waistband.
 
 Each product has a folder in `public/products/<slug>/` holding three photos:
 
@@ -29,7 +30,7 @@ Each product has a folder in `public/products/<slug>/` holding three photos:
 - The easy way is the **admin panel** at `/admin` (the Admin button in the store header, shown only in `pnpm dev`). Drop a photo into a product's Front, Back or Side box: a plain studio background is removed in the browser, and Save frames it and writes it to `public/products/<slug>/`. Side photos have a Mirror button if the front faces left. Saving writes to this computer, so the panel and its API only run in development.
 - To make photos with AI from a picture of real clothes, copy the generic prompt at the top of the admin panel. Per-product prompts that describe each item are in `PHOTO-PROMPTS.md`.
 - No hanger in the photos, since it's added in 3D.
-- Portrait 4:5 canvas (e.g. 1600×2000), garment centred, top of the collar touching the top edge, same scale in all three photos and across products.
+- Portrait 4:5 canvas (e.g. 1600×2000), garment centred, top of the collar (or waistband) touching the top edge, same scale in all three photos and across products. The admin panel does this for you: tops are scaled to a standard width, pants to 92% of the height.
 - The side photo is what makes the rack look real from the side. Without it the depth is estimated and the sides take the front photo's colours.
 - Until a product has photos, drawn placeholders are used.
 

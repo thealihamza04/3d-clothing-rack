@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import type { Product } from "@/lib/products";
-import { HungGarment, SlotCamera, StudioLights, useGarmentModels } from "./garment-3d";
+import { HungGarment, SlotCamera, StudioLights, useGarmentModels, useZoomDpr } from "./garment-3d";
 import { usePhotos } from "./photos-context";
 
 // The scene is SHOWCASE_WIDTH by SHOWCASE_HEIGHT units (the aspect class below), and the
@@ -31,9 +31,10 @@ export function ShowcaseCanvas({
   const photos = usePhotos(product.slug);
   const models = useGarmentModels([product], { [product.slug]: photos });
   const model = models[product.slug];
+  const dpr = useZoomDpr();
   return (
     <div className="relative aspect-[3.4/4.7] w-[min(72vw,320px)] drop-shadow-[0_16px_18px_rgba(0,0,0,0.14)] sm:w-[min(30vw,340px)]">
-      <Canvas flat dpr={[1, 2]} gl={{ alpha: true, antialias: true }} style={{ position: "absolute", inset: 0 }}>
+      <Canvas flat dpr={dpr} gl={{ alpha: true, antialias: true }} style={{ position: "absolute", inset: 0 }}>
         <SlotCamera width={SHOWCASE_WIDTH} centerX={0} top={SHOWCASE_TOP} />
         <StudioLights />
         <Turntable key={product.slug} start={startTurn} turn={turn} pace={pace} loaded={!!model} onReady={onReady}>
