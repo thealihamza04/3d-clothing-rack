@@ -2,7 +2,7 @@
 
 A clothing store laid out as a real clothes rail: pieces hang side-on in 3D, turn to face you on hover, and open into a product view on click.
 
-![The rack: seven pieces hanging side-on from a rail](docs/preview.webp)
+![The rack: seven pieces hanging side-on from a rail](docs/preview.gif)
 
 ```bash
 pnpm install
