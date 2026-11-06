@@ -6,12 +6,16 @@ import { AnimatePresence, motion } from "motion/react";
 import { BRAND, type Photos, type Product } from "@/lib/products";
 import { PhotosProvider } from "./photos-context";
 import { ProductView } from "./product-view";
-import { RackCanvas } from "./rack-canvas";
+import { garmentBottom, useGarmentModels } from "./garment-3d";
+import { LIFT, PIECE_Y, RackCanvas, SPREAD } from "./rack-canvas";
 import { BagIcon, ChevronIcon, SearchIcon, UserIcon } from "./icons";
 
 export function Store({ products, photos }: { products: Product[]; photos: Photos }) {
   const [hovered, setHovered] = useState<number | null>(null);
   const [selected, setSelected] = useState<number | null>(null);
+  // Whether the opened piece was lifted on the rack, and whether the view has taken it yet.
+  const [picked, setPicked] = useState(false);
+  const [shown, setShown] = useState(false);
   const [cartCount, setCartCount] = useState(0);
   const [aboutOpen, setAboutOpen] = useState(false);
   const isMobile = useMediaQuery("(max-width: 639px)");
@@ -92,25 +96,36 @@ export function Store({ products, photos }: { products: Product[]; photos: Photo
               offset={r * perRow}
               photos={photos}
               hovered={isMobile ? null : hovered}
-              selected={selected}
-              onHover={setHovered}
-              onSelect={setSelected}
+              hidden={shown ? selected : null}
+              // The rack holds still while a piece is open, so it can fly back to the same place.
+              onHover={(i) => selected === null && setHovered(i)}
+              onSelect={(i) => {
+                setPicked(!isMobile && hovered === i);
+                setShown(false);
+                setSelected(i);
+              }}
             />
           ))}
         </main>
 
-        <AnimatePresence>
-          {selected !== null && (
-            <ProductView
-              key="view"
-              products={products}
-              index={selected}
-              onIndexChange={setSelected}
-              onClose={() => setSelected(null)}
-              onAdd={() => setCartCount((c) => c + 1)}
-            />
-          )}
-        </AnimatePresence>
+        {/* The view animates its own open and close (the piece flies out of the rack and
+            back), handing the piece over to and from the rack in the same spot. */}
+        {selected !== null && (
+          <ProductView
+            products={products}
+            index={selected}
+            picked={picked}
+            onIndexChange={setSelected}
+            onShown={() => setShown(true)}
+            onClosing={() => setHovered(null)}
+            onLanded={() => setShown(false)}
+            onClose={() => {
+              setSelected(null);
+              setShown(false);
+            }}
+            onAdd={() => setCartCount((c) => c + 1)}
+          />
+        )}
       </div>
     </PhotosProvider>
   );
@@ -118,14 +133,14 @@ export function Store({ products, photos }: { products: Product[]; photos: Photo
 
 // Pieces hang one slot (--s) apart. The 3D scene is drawn in slot units, and plain
 // buttons over each slot handle pointing, clicking and keyboard focus.
-const HEIGHT = 6.4; // rack height in slots, with room for a lifted piece and its tag
+const HEIGHT = 5.6; // rack height in slots, with room for a lifted piece and its tag
 
 function Rack({
   items,
   offset,
   photos,
   hovered,
-  selected,
+  hidden,
   onHover,
   onSelect,
 }: {
@@ -133,13 +148,17 @@ function Rack({
   offset: number;
   photos: Photos;
   hovered: number | null;
-  selected: number | null;
+  hidden: number | null;
   onHover: (i: number | null) => void;
   onSelect: (i: number) => void;
 }) {
+  const models = useGarmentModels(items, photos);
   const inRange = (i: number | null) => (i !== null && i >= offset && i < offset + items.length ? i - offset : null);
   const local = inRange(hovered);
   const label = local === null ? null : items[local];
+  // The tag sits just under the lifted piece.
+  const model = label && models[label.slug];
+  const labelTop = model ? -(PIECE_Y + garmentBottom(model) * LIFT) + 0.3 : 4.6;
 
   return (
     <div
@@ -147,18 +166,19 @@ function Rack({
       style={{ width: `calc(var(--s) * ${items.length + 3})`, height: `calc(var(--s) * ${HEIGHT})` }}
       onMouseLeave={() => onHover(null)}
     >
-      <RackCanvas items={items} photos={photos} hovered={local} hidden={inRange(selected)} />
+      <RackCanvas items={items} models={models} hovered={local} hidden={inRange(hidden)} />
 
       {items.map((product, j) => (
         <button
           key={product.slug}
           aria-label={`${product.name}, ${product.colorName}`}
+          data-slot={offset + j}
           className="absolute top-0 cursor-pointer rounded-full outline-none focus-visible:ring-2 focus-visible:ring-neutral-900/30"
           style={{
             left: `calc(var(--s) * ${j + 1.5})`,
             width: "var(--s)",
             height: `calc(var(--s) * 4.2)`,
-            translate: `calc(var(--s) * ${local === null || local === j ? 0 : Math.sign(j - local) * 0.8}) 0`,
+            translate: `calc(var(--s) * ${local === null || local === j ? 0 : Math.sign(j - local) * SPREAD}) 0`,
           }}
           onMouseEnter={() => onHover(offset + j)}
           onFocus={() => onHover(offset + j)}
@@ -169,7 +189,7 @@ function Rack({
       {/* Name under the piece you're pointing at, like a shop tag. */}
       <div
         className="pointer-events-none absolute whitespace-nowrap"
-        style={{ left: `calc(var(--s) * ${(local ?? 0) + 2})`, top: "calc(var(--s) * 5.75)", translate: "-50% 0" }}
+        style={{ left: `calc(var(--s) * ${(local ?? 0) + 2})`, top: `calc(var(--s) * ${labelTop})`, translate: "-50% 0" }}
       >
         <AnimatePresence mode="wait">
           {label && (
@@ -180,7 +200,8 @@ function Rack({
               exit={{ opacity: 0, transition: { duration: 0.08 } }}
               className="text-[10px] tracking-[0.06em] text-neutral-500 uppercase"
             >
-              {label.name} <span className="text-neutral-400">— {label.colorName}</span>
+              {label.name}
+              <span className="ml-2 text-neutral-400">{label.colorName}</span>
             </motion.p>
           )}
         </AnimatePresence>

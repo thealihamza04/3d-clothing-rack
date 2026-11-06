@@ -57,6 +57,7 @@ function Rod({
   const mid = a.clone().add(b).multiplyScalar(0.5);
   return (
     <mesh
+      castShadow
       geometry={wire ? wireGeometry : rodGeometry}
       material={wire ? steel : wood}
       position={mid}
@@ -73,7 +74,7 @@ export function HungGarment({ model }: { model?: GarmentModel }) {
   const { reach, centre, end } = model.hanger;
   return (
     <group>
-      <mesh geometry={hookGeometry} material={steel} />
+      <mesh geometry={hookGeometry} material={steel} castShadow />
       {/* The wooden hanger: a short neck, two arms out to the shoulders, and a wire up to the hook. */}
       <Rod from={[0, centre + offset]} to={[0, Math.min(centre + offset + NECK, HOOK_BOTTOM + 0.02)]} />
       {centre + offset + NECK < HOOK_BOTTOM && (
@@ -81,9 +82,15 @@ export function HungGarment({ model }: { model?: GarmentModel }) {
       )}
       <Rod from={[0, centre + offset]} to={[-reach, end + offset]} />
       <Rod from={[0, centre + offset]} to={[reach, end + offset]} />
-      <mesh geometry={model.geometry} material={model.materials} position={[0, offset, 0]} />
+      <mesh geometry={model.geometry} material={model.materials} position={[0, offset, 0]} castShadow receiveShadow />
     </group>
   );
+}
+
+// How far a hung piece reaches below its hook (a negative y, in slots).
+export function garmentBottom(model: GarmentModel) {
+  if (!model.geometry.boundingBox) model.geometry.computeBoundingBox();
+  return GARMENT_TOP - model.top + model.geometry.boundingBox!.min.y;
 }
 
 // Inside a <Canvas> effects don't run reliably, so models are loaded out here in the
@@ -110,19 +117,43 @@ export function useGarmentModels(items: Product[], photos: Photos) {
 }
 
 // Lighting shared by every scene: soft studio light from the front, a little from behind.
-export function StudioLights() {
+// Given an `area` (centre and size, in slots), the front light also casts soft, faint
+// shadows there, so pieces that overlap on the rail shade each other.
+export function StudioLights({ area }: { area?: { x: number; y: number; width: number; height: number } }) {
+  const [target] = useState(() => new THREE.Object3D());
+  const at = area ?? { x: 0, y: 0, width: 0, height: 0 };
   return (
     <>
       <hemisphereLight args={["#ffffff", "#d8d4cc", 1.6]} />
-      <directionalLight position={[3, 4, 9]} intensity={1.5} />
+      <primitive object={target} position={[at.x, at.y, 0]} />
+      <directionalLight
+        target={target}
+        position={[at.x + 3, at.y + 4, 9]}
+        intensity={1.5}
+        castShadow={!!area}
+        shadow-mapSize={[2048, 1024]}
+        shadow-camera-left={-at.width / 2}
+        shadow-camera-right={at.width / 2}
+        shadow-camera-top={at.height / 2}
+        shadow-camera-bottom={-at.height / 2}
+        shadow-camera-near={4}
+        shadow-camera-far={18}
+        shadow-bias={-0.0005}
+        shadow-normalBias={0.03}
+        shadow-radius={6}
+        shadow-intensity={0.45}
+      />
       <directionalLight position={[-6, 2, -4]} intensity={0.5} />
     </>
   );
 }
 
+// A narrow field of view, so pieces barely change shape across the rack.
+export const FOV = 11;
+
 // Sets up a camera where one world unit spans the same number of pixels as one rack
 // slot: `width` units fill the canvas width, centred on centerX, with `top` at the
-// top edge. A narrow field of view keeps the perspective gentle.
+// top edge.
 export function SlotCamera({ width, centerX, top }: { width: number; centerX: number; top: number }) {
   const get = useThree((s) => s.get);
   const size = useThree((s) => s.size);
@@ -130,9 +161,8 @@ export function SlotCamera({ width, centerX, top }: { width: number; centerX: nu
   useLayoutEffect(() => {
     const camera = get().camera as THREE.PerspectiveCamera;
     const height = (width * size.height) / size.width;
-    const fov = 11;
-    const distance = height / 2 / Math.tan(THREE.MathUtils.degToRad(fov / 2));
-    camera.fov = fov;
+    const distance = height / 2 / Math.tan(THREE.MathUtils.degToRad(FOV / 2));
+    camera.fov = FOV;
     camera.near = 1;
     camera.far = distance + 20;
     camera.position.set(centerX, top - height / 2, distance);

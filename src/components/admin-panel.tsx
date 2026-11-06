@@ -16,11 +16,12 @@ import {
 } from "@/lib/products";
 import { cutOutGarment, frameGarment, framedFrontHeight, measureFramedHeight, toPng } from "@/lib/photo-prep";
 import { PromptTemplate } from "./ai-prompts";
+import { ArrowLeftIcon, CloseIcon, ImageIcon, MirrorIcon, PlusIcon, SpinnerIcon, TrashIcon } from "./icons";
 
 const SLOTS: { view: PhotoSide; label: string; hint: string }[] = [
   { view: "front", label: "Front", hint: "Facing the camera" },
   { view: "back", label: "Back", hint: "Same framing as the front" },
-  { view: "side", label: "Side", hint: "Optional · front facing right" },
+  { view: "side", label: "Side", hint: "Optional, front facing right" },
 ];
 
 type Pending = { file: File; garment: HTMLCanvasElement; preview: string; mirrored: boolean };
@@ -41,8 +42,11 @@ export function AdminPanel({ catalog, photos, rackLimit }: { catalog: Catalog; p
   return (
     <div className="min-h-dvh bg-[var(--paper)] text-neutral-900">
       <header className="flex items-center justify-between px-4 py-5 sm:px-8">
-        <Link href="/" className="text-[10px] tracking-[0.12em] text-neutral-600 uppercase hover:text-neutral-900">
-          ← Store
+        <Link
+          href="/"
+          className="flex items-center gap-1.5 text-[10px] tracking-[0.12em] text-neutral-600 uppercase hover:text-neutral-900"
+        >
+          <ArrowLeftIcon size={13} /> Store
         </Link>
         <div className="font-logo text-xl font-bold">{BRAND}</div>
         <span className="text-[10px] tracking-[0.12em] text-neutral-600 uppercase">Admin</span>
@@ -64,8 +68,11 @@ export function AdminPanel({ catalog, photos, rackLimit }: { catalog: Catalog; p
         <PromptTemplate />
 
         <div className="mt-10 mb-3 flex flex-wrap items-center justify-between gap-3">
-          <h2 className={label}>
-            On the rack · {products.length} of {settings.maxItems}
+          <h2 className={`${label} flex items-baseline gap-2`}>
+            On the rack
+            <span className="font-normal tracking-[0.08em] text-neutral-500 normal-case">
+              {products.length} of {settings.maxItems}
+            </span>
           </h2>
           <div className="flex items-center gap-3">
             {full && !adding && <span className="text-[11px] text-neutral-500">Rack is full. Raise the maximum to add more.</span>}
@@ -75,9 +82,10 @@ export function AdminPanel({ catalog, photos, rackLimit }: { catalog: Catalog; p
                 setNotice("");
               }}
               disabled={full && !adding}
-              className={adding ? "h-9 rounded-full border border-neutral-400 px-5 text-[10px] tracking-[0.18em] uppercase hover:border-neutral-900" : primary}
+              className={`flex items-center gap-2 ${adding ? "h-9 rounded-full border border-neutral-400 px-5 text-[10px] tracking-[0.18em] uppercase hover:border-neutral-900" : primary}`}
             >
-              {adding ? "Cancel" : "+ Add item"}
+              {adding ? <CloseIcon size={11} /> : <PlusIcon size={13} />}
+              {adding ? "Cancel" : "Add item"}
             </button>
           </div>
         </div>
@@ -151,8 +159,9 @@ function RackLimits({
           <span className="text-[11px] text-neutral-500">Maximum</span>
           <input type="number" min={1} max={rackLimit} value={maxItems} onChange={(e) => setMaxItems(e.target.value)} className={field} />
         </label>
-        <button onClick={save} disabled={!changed || status.kind === "saving"} className={primary}>
-          {status.kind === "saving" ? "Saving…" : "Save"}
+        <button onClick={save} disabled={!changed || status.kind === "saving"} className={`flex items-center gap-2 ${primary}`}>
+          {status.kind === "saving" && <SpinnerIcon size={12} />}
+          {status.kind === "saving" ? "Saving" : "Save"}
         </button>
       </div>
       <p className={`mt-2 max-w-72 text-[11px] ${status.kind === "error" ? "text-red-700" : "text-neutral-500"}`} role="status">
@@ -233,8 +242,9 @@ function AddItemForm({ onAdded }: { onAdded: (product: Product) => void }) {
         <textarea name="description" rows={2} placeholder="Heavyweight cotton, boxy fit." className={`${field} h-auto py-2`} />
       </label>
       <div className="flex items-center gap-4 md:col-span-6">
-        <button type="submit" disabled={saving} className={primary}>
-          {saving ? "Adding…" : "Add to rack"}
+        <button type="submit" disabled={saving} className={`flex items-center gap-2 ${primary}`}>
+          {saving ? <SpinnerIcon size={12} /> : <PlusIcon size={13} />}
+          {saving ? "Adding" : "Add to rack"}
         </button>
         {error && (
           <p className="text-[12px] text-red-700" role="alert">
@@ -322,15 +332,18 @@ function ProductPhotos({
         <p className="mt-0.5 text-[11px] text-neutral-500">{product.slug}</p>
         <p className="mt-2 flex items-center gap-1.5 text-[11px] text-neutral-600">
           <span className="inline-block h-2.5 w-2.5 rounded-full ring-1 ring-black/10" style={{ background: product.color }} />
-          {GARMENT_TYPES.find((g) => g.type === product.type)?.label} · {formatPrice(product.price)}
+          {GARMENT_TYPES.find((g) => g.type === product.type)?.label}
+          <span className="h-3 w-px bg-neutral-300" aria-hidden />
+          {formatPrice(product.price)}
         </p>
         <button
           onClick={remove}
           disabled={!canRemove || removing}
           title={canRemove ? undefined : `The rack needs at least ${minItems} items.`}
-          className="mt-3 text-[11px] text-red-700 underline underline-offset-2 hover:text-red-900 disabled:cursor-not-allowed disabled:text-neutral-400 disabled:no-underline"
+          className="mt-3 flex items-center gap-1.5 text-[11px] text-red-700 hover:text-red-900 disabled:cursor-not-allowed disabled:text-neutral-400"
         >
-          {removing ? "Removing…" : "Remove from rack"}
+          {removing ? <SpinnerIcon size={12} /> : <TrashIcon size={13} />}
+          {removing ? "Removing" : "Remove from rack"}
         </button>
       </div>
 
@@ -362,9 +375,10 @@ function ProductPhotos({
         <button
           onClick={save}
           disabled={!hasChanges || status.kind === "saving" || working !== null}
-          className="h-9 w-28 rounded-full bg-neutral-900 text-[10px] tracking-[0.18em] text-white uppercase transition-colors hover:bg-neutral-700 disabled:cursor-not-allowed disabled:bg-neutral-300"
+          className="flex h-9 w-28 items-center justify-center gap-2 rounded-full bg-neutral-900 text-[10px] tracking-[0.18em] text-white uppercase transition-colors hover:bg-neutral-700 disabled:cursor-not-allowed disabled:bg-neutral-300"
         >
-          {status.kind === "saving" ? "Saving…" : "Save"}
+          {status.kind === "saving" && <SpinnerIcon size={12} />}
+          {status.kind === "saving" ? "Saving" : "Save"}
         </button>
         <p
           className={`min-h-4 max-w-56 text-[11px] md:text-right ${status.kind === "error" ? "text-red-700" : "text-neutral-500"}`}
@@ -444,15 +458,17 @@ function PhotoSlot({
           <img src={shown} alt="" className="absolute inset-0 h-full w-full object-contain p-2" draggable={false} />
         )}
         {!shown && !working && (
-          <span className="px-2 text-center text-[11px] leading-snug text-neutral-500">
+          <span className="flex flex-col items-center gap-1.5 px-2 text-center text-[11px] leading-snug text-neutral-500">
+            <ImageIcon size={20} className="text-neutral-400" />
             Drop image
             <br />
             or click
           </span>
         )}
         {working && (
-          <span className="absolute inset-0 grid place-items-center bg-white/70 text-[11px] text-neutral-600">
-            Cutting out…
+          <span className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-white/70 text-[11px] text-neutral-600">
+            <SpinnerIcon size={16} />
+            Cutting out
           </span>
         )}
       </button>
@@ -472,12 +488,12 @@ function PhotoSlot({
         {pending ? (
           <>
             {view === "side" && (
-              <button onClick={onMirror} className="underline underline-offset-2 hover:text-neutral-900">
-                Mirror
+              <button onClick={onMirror} className="flex items-center gap-1 hover:text-neutral-900">
+                <MirrorIcon size={12} /> Mirror
               </button>
             )}
-            <button onClick={onDiscard} className="underline underline-offset-2 hover:text-neutral-900">
-              Discard
+            <button onClick={onDiscard} className="flex items-center gap-1 hover:text-neutral-900">
+              <CloseIcon size={10} /> Discard
             </button>
           </>
         ) : (

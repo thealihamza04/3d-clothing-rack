@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { CheckIcon, CopyIcon } from "./icons";
 
 // One prompt for an image AI (Gemini, ChatGPT) that turns any photo of real clothes,
 // worn, folded or on a hanger, into the front, back and side photos the rack needs.
@@ -48,11 +49,12 @@ export function PromptTemplate() {
         </div>
         <button
           onClick={copy}
-          className={`h-9 shrink-0 rounded-full px-5 text-[10px] tracking-[0.18em] uppercase transition-colors ${
+          className={`flex h-9 shrink-0 items-center gap-2 rounded-full px-5 text-[10px] tracking-[0.18em] uppercase transition-colors ${
             copied === "yes" ? "bg-emerald-600 text-white" : "bg-neutral-900 text-white hover:bg-neutral-700"
           }`}
         >
-          {copied === "yes" ? "Copied ✓" : copied === "select" ? "Selected, press Ctrl+C" : "Copy prompt"}
+          {copied === "yes" ? <CheckIcon size={13} /> : <CopyIcon size={13} />}
+          {copied === "yes" ? "Copied" : copied === "select" ? "Selected, press Ctrl+C" : "Copy prompt"}
         </button>
       </div>
       <p
